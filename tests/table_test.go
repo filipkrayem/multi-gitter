@@ -980,6 +980,29 @@ Repositories with a successful run:
 				assert.Equal(t, "Both the feature branch and base branch was named master, if you intended to push directly into the base branch, please use the `skip-pr` option:\n  owner/should-not-change\n", runData.out)
 			},
 		},
+		{
+			name: "custom clone dir",
+			vcCreate: func(t *testing.T) *vcmock.VersionController {
+				return &vcmock.VersionController{
+					Repositories: []vcmock.Repository{
+						createRepoWithCloneDir(t, "owner", "should-change", "i like apples", "./tmp-test"),
+					},
+				}
+			},
+			args: []string{
+				"run",
+				"--author-name", "Test Author",
+				"--author-email", "test@example.com",
+				"-B", "clone-dir-branch-name",
+				"-m", "clone dir message",
+				"--clone-dir", "./tmp-test",
+				changerBinaryPath,
+			},
+			verify: func(t *testing.T, vcMock *vcmock.VersionController, runData runData) {
+				require.Len(t, vcMock.PullRequests, 1)
+				assert.Contains(t, vcMock.Repositories[0].Path, "/tmp-test")
+			},
+		},
 	}
 
 	for _, gitBackend := range gitBackends {
@@ -990,18 +1013,26 @@ Repositories with a successful run:
 			}
 
 			t.Run(fmt.Sprintf("%s_%s", gitBackend, test.name), func(t *testing.T) {
+				tempDir := os.TempDir()
+
+				cloneDirFlagIndex := indexOf(test.args, "--clone-dir")
+				if cloneDirFlagIndex != -1 {
+					tempDir = test.args[cloneDirFlagIndex+1]
+				}
+				createDirectoryIfDoesntExist(tempDir)
+
 				// Skip some tests depending on the values in skipTypes
 				if skipOverlap(skipTypes, test.skipTypes) {
 					t.SkipNow()
 				}
 
-				logFile, err := os.CreateTemp(os.TempDir(), "multi-gitter-test-log")
+				logFile, err := os.CreateTemp(tempDir, "multi-gitter-test-log")
 				require.NoError(t, err)
 				defer os.Remove(logFile.Name())
 
-				outFile, err := os.CreateTemp(os.TempDir(), "multi-gitter-test-output")
+				outFile, err := os.CreateTemp(tempDir, "multi-gitter-test-output")
 				require.NoError(t, err)
-				// defer os.Remove(outFile.Name())
+				defer os.Remove(outFile.Name())
 
 				vc := test.vcCreate(t)
 				defer vc.Clean()

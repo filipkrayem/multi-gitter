@@ -65,7 +65,8 @@ type Runner struct {
 
 	Draft bool // If set, creates Pull Requests as draft
 
-	Labels []string // Labels to be added to the pull request
+	Labels   []string // Labels to be added to the pull request
+	CloneDir string   // Directory to clone repositories to
 
 	Interactive bool // If set, interactive mode is activated and the user will be asked to verify every change
 
@@ -201,7 +202,16 @@ func (r *Runner) runSingleRepo(ctx context.Context, repo scm.Repository) (scm.Pu
 	log := log.WithField("repo", repo.FullName())
 	log.Info("Cloning and running script")
 
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "multi-git-changer-")
+	if r.CloneDir == "" {
+		r.CloneDir = os.TempDir()
+	}
+
+	err := createDirectoryIfDoesntExist(r.CloneDir)
+	if err != nil {
+		return nil, err
+	}
+
+	tmpDir, err := os.MkdirTemp(r.CloneDir, "multi-git-changer-")
 	if err != nil {
 		return nil, err
 	}

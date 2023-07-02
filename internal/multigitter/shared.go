@@ -3,6 +3,7 @@ package multigitter
 import (
 	"context"
 	"fmt"
+	"os"
 	"syscall"
 
 	"github.com/lindell/multi-gitter/internal/git"
@@ -69,4 +70,18 @@ func ParseConflictStrategy(str string) (ConflictStrategy, error) {
 	case "replace":
 		return ConflictStrategyReplace, nil
 	}
+}
+
+func createDirectoryIfDoesntExist(directoryPath string) error {
+	// Check if the directory exists
+	if _, err := os.Stat(directoryPath); os.IsNotExist(err) {
+		// Create the directory
+		err := os.MkdirAll(directoryPath, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("failed to create directory: %s", err)
+		}
+		return nil
+	}
+
+	return nil
 }
